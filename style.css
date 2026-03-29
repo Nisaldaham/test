@@ -1,0 +1,167 @@
+/**
+ * Sri Lanka Elite Travel - Application Logic
+ */
+
+// 1. Configuration & Data
+const apiKey = ""; // Managed by environment
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'sri-lanka-tourist-v1';
+
+const destinations = [
+    {
+        title: "Sigiriya Rock Fortress",
+        category: "culture",
+        img: "https://images.unsplash.com/photo-1588598133416-2da2197a950c?auto=format&fit=crop&q=80&w=800",
+        desc: "Climb the 5th-century 'Lion Rock' and witness ancient frescoes and engineering marvels.",
+        tag: "UNESCO Site"
+    },
+    {
+        title: "Mirissa Blue Whale Safari",
+        category: "wildlife",
+        img: "https://images.unsplash.com/photo-1544085311-11a028465b03?auto=format&fit=crop&q=80&w=800",
+        desc: "Witness the majestic blue whales in their natural habitat along the southern coastline.",
+        tag: "Adventure"
+    },
+    {
+        title: "Nine Arch Bridge, Ella",
+        category: "culture",
+        img: "https://images.unsplash.com/photo-1552423158-95e946d21d27?auto=format&fit=crop&q=80&w=800",
+        desc: "A stunning colonial-era railway bridge tucked between lush tea estates and clouds.",
+        tag: "Scenic"
+    },
+    {
+        title: "Yala National Park",
+        category: "wildlife",
+        img: "https://images.unsplash.com/photo-1561660838-5dd0a436a5b2?auto=format&fit=crop&q=80&w=800",
+        desc: "Home to the world's highest density of leopards and exotic bird species.",
+        tag: "Must Visit"
+    },
+    {
+        title: "Galle Fort",
+        category: "culture",
+        img: "https://images.unsplash.com/photo-1625244724123-1f5d06711540?auto=format&fit=crop&q=80&w=800",
+        desc: "A Dutch colonial fortress where heritage buildings meet modern boutiques and cafes.",
+        tag: "Heritage"
+    },
+    {
+        title: "Unawatuna Beach",
+        category: "beaches",
+        img: "https://images.unsplash.com/photo-1578330132821-d6824944ec52?auto=format&fit=crop&q=80&w=800",
+        desc: "Golden sands and turquoise waters perfect for surfing, diving, and relaxation.",
+        tag: "Relaxation"
+    }
+];
+
+// 2. Rendering Logic
+function renderDestinations(filter = 'all') {
+    const grid = document.getElementById('destination-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    const filtered = filter === 'all' ? destinations : destinations.filter(d => d.category === filter);
+
+    filtered.forEach((item) => {
+        const card = `
+            <div class="reveal group card-zoom bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 active">
+                <div class="relative h-64 overflow-hidden">
+                    <img src="${item.img}" class="w-full h-full object-cover transition-transform duration-700" alt="${item.title}">
+                    <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-emerald-900">
+                        ${item.tag}
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-emerald-950 mb-2">${item.title}</h3>
+                    <p class="text-gray-500 text-sm mb-4 leading-relaxed">${item.desc}</p>
+                    <button class="text-emerald-700 font-bold text-sm flex items-center gap-2 group-hover:gap-4 transition-all">
+                        Explore Details <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.innerHTML += card;
+    });
+    
+    handleScroll(); // Trigger reveal for new elements
+}
+
+window.filterDestinations = function(cat) {
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-900', 'text-white');
+        btn.classList.add('bg-white', 'text-emerald-900');
+    });
+    event.currentTarget.classList.add('bg-emerald-900', 'text-white');
+    renderDestinations(cat);
+};
+
+// 3. AI Concierge Integration
+window.sendMessage = async function() {
+    const input = document.getElementById('chat-input');
+    const windowEl = document.getElementById('chat-window');
+    const loader = document.getElementById('chat-loading');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    // UI Feedback: User Message
+    windowEl.innerHTML += `<div class="chat-bubble bg-emerald-900 text-white ml-auto">${message}</div>`;
+    input.value = '';
+    windowEl.scrollTop = windowEl.scrollHeight;
+    loader.classList.remove('hidden');
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: `User query: ${message}` }] }],
+                systemInstruction: { parts: [{ text: "You are an expert luxury travel concierge for Sri Lanka. Start with 'Ayubowan!'. Suggest specific hidden gems and logistics for their request." }] }
+            })
+        });
+
+        const data = await response.json();
+        const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having trouble connecting to my local travel guides. Please try again later!";
+
+        windowEl.innerHTML += `<div class="chat-bubble bg-emerald-100 text-emerald-900">${aiResponse}</div>`;
+    } catch (err) {
+        windowEl.innerHTML += `<div class="chat-bubble bg-red-50 text-red-900 text-sm italic">Failed to connect to the server. Please check your internet.</div>`;
+    } finally {
+        loader.classList.add('hidden');
+        windowEl.scrollTop = windowEl.scrollHeight;
+    }
+};
+
+// 4. Interaction & Scroll Effects
+function handleScroll() {
+    const reveals = document.querySelectorAll('.reveal');
+    const nav = document.getElementById('main-nav');
+    
+    // Navbar Shrink Effect
+    if (window.scrollY > 50) {
+        nav.classList.add('py-2');
+    } else {
+        nav.classList.remove('py-2');
+    }
+
+    // Scroll Reveal Intersection Logic
+    reveals.forEach(el => {
+        const windowHeight = window.innerHeight;
+        const revealTop = el.getBoundingClientRect().top;
+        const revealPoint = 100;
+
+        if (revealTop < windowHeight - revealPoint) {
+            el.classList.add('active');
+        }
+    });
+}
+
+// 5. Lifecycle Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    renderDestinations();
+    handleScroll();
+    
+    window.addEventListener('scroll', handleScroll);
+
+    // Chat Input Enter Listener
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+});
